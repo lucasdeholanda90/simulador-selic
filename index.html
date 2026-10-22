@@ -24,6 +24,7 @@ body{margin:0}
   --txt:#e3eeec; --cinza:#93a6a3; --verde:#2aa898; --escuro:#0a5a52; --titulo:#7fd6ca;
   --laranja:#d9864c; --sobre:#ffffff; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--txt);font-family:var(--fonte);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
 .faixa{background:linear-gradient(135deg,#0e8c80 0%,#07564f 100%);color:#fff;position:relative;overflow:hidden;
   padding-block:44px 52px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -47,6 +48,7 @@ h2{font-size:12px;font-weight:700;letter-spacing:.18em;color:var(--verde);text-t
 .caixa:focus-within{border-color:var(--verde)}
 .caixa span{padding:0 4px 0 12px;color:var(--cinza);font-weight:500}
 .caixa span.d{padding:0 12px 0 4px}
+.caixa input::placeholder{color:var(--cinza);opacity:.6}
 .caixa input{flex:1;min-width:0;border:0;background:transparent;color:var(--txt);font:600 18px var(--fonte);padding:10px 12px 10px 4px;outline:none;font-variant-numeric:tabular-nums}
 input[type=range]{width:100%;accent-color:var(--verde)}
 .dica{font-size:12px;color:var(--cinza)}
@@ -119,12 +121,12 @@ tr.mk td{background:var(--claro)}
     <h2>Seus valores</h2>
     <div class="campo">
       <label for="inicial">Valor inicial</label>
-      <div class="caixa"><span>R$</span><input id="inicial" type="text" inputmode="decimal" value="1.000"></div>
+      <div class="caixa"><span>R$</span><input id="inicial" type="text" inputmode="decimal" value="" placeholder="0"></div>
       <div class="atalhos" data-alvo="inicial"><button type="button" data-v="0">0</button><button type="button" data-v="1000">1 mil</button><button type="button" data-v="5000">5 mil</button><button type="button" data-v="10000">10 mil</button></div>
     </div>
     <div class="campo">
       <label for="mensal">Aporte por mês</label>
-      <div class="caixa"><span>R$</span><input id="mensal" type="text" inputmode="decimal" value="300"></div>
+      <div class="caixa"><span>R$</span><input id="mensal" type="text" inputmode="decimal" value="" placeholder="0"></div>
       <div class="atalhos" data-alvo="mensal"><button type="button" data-v="100">100</button><button type="button" data-v="300">300</button><button type="button" data-v="500">500</button><button type="button" data-v="1000">1.000</button></div>
     </div>
     <div class="campo">
@@ -140,11 +142,12 @@ tr.mk td{background:var(--claro)}
     </div>
     <button type="button" class="calc" id="calcular">Calcular</button>
     <div class="pend" id="pend" hidden>Valores alterados. Toque em Calcular.</div>
-    <button type="button" class="reset" id="reset">Voltar ao exemplo (R$ 1.000 + R$ 300 por 20 anos)</button>
+    <button type="button" class="reset" id="reset">Limpar valores</button>
   </form>
 
   <section class="res" id="res" aria-live="polite">
     <div class="hero"><div class="k">VOCÊ TERIA NO FINAL</div><b id="total">–</b><span id="totalDet"></span></div>
+    <div class="res" id="detalhe">
     <div class="par">
       <div><div class="k"><i style="background:var(--laranja)"></i>SE FOSSE SÓ JUNTAR</div><b id="guardou">–</b><span id="guardouDet"></span></div>
       <div><div class="k"><i style="background:var(--verde)"></i>VALOR DOS JUROS</div><b id="juros">–</b><span id="jurosDet"></span></div>
@@ -164,6 +167,7 @@ tr.mk td{background:var(--claro)}
       <div class="tabwrap"><table><thead><tr><th>ANO</th><th>VOCÊ GUARDOU</th><th>JUROS</th><th>TOTAL</th></tr></thead><tbody id="tab"></tbody></table></div>
     </div>
 
+    </div>
     <p class="obs">Taxa padrão: média composta da Selic efetiva de out/2006 a out/2026 (Banco Central, série 4189), 10,24% ao ano.
     Aporte no fim de cada mês. Valores brutos: sem imposto de renda, inflação ou taxas. É uma simulação com a taxa do passado, não promessa de rentabilidade.</p>
   </section>
@@ -245,9 +249,18 @@ function atualizar() {
   const anos = Math.min(Math.max(Math.round(num("anos")) || 1, 1), 50), taxa = num("taxa") / 100;
   $("anosR").value = anos; $("pend").hidden = true;
   const br = v => v.toLocaleString("pt-BR", {maximumFractionDigits: 2});
-  $("inicial").value = br(inicial); $("mensal").value = br(mensal); $("anos").value = anos; $("taxa").value = br(taxa * 100);
+  if ($("inicial").value.trim()) $("inicial").value = br(inicial);
+  if ($("mensal").value.trim()) $("mensal").value = br(mensal);
+  $("anos").value = anos; $("taxa").value = br(taxa * 100);
   const r = simular(inicial, mensal, anos, taxa);
   $("taxaMes").textContent = `= ${pct(r.i, 4)} ao mês (juros compostos)`;
+  const vazio = inicial + mensal === 0;
+  $("detalhe").hidden = vazio;
+  if (vazio) {
+    $("total").textContent = fmt(0);
+    $("totalDet").textContent = "Preencha o valor inicial e quanto vai guardar por mês, depois toque em Calcular.";
+    return;
+  }
   $("total").textContent = fmt(r.saldo);
   $("totalDet").textContent = `${fmt(r.saldo, true)} brutos depois de ${anos} ${anos === 1 ? "ano" : "anos"}`;
   $("guardou").textContent = fmt(r.guardou);
@@ -289,7 +302,7 @@ document.querySelectorAll(".atalhos").forEach(a => a.addEventListener("click", e
   $(a.dataset.alvo).value = b.dataset.v; pendente();
 }));
 $("reset").addEventListener("click", () => {
-  $("inicial").value = "1.000"; $("mensal").value = "300"; $("anos").value = "20"; $("taxa").value = "10,24"; pendente();
+  $("inicial").value = ""; $("mensal").value = ""; $("anos").value = "20"; $("taxa").value = "10,24"; atualizar();
 });
 atualizar();
 </script>
